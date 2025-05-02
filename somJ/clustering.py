@@ -6,10 +6,10 @@ def som_clustering(som_map, num_clusters):
     nodes = [(i, j) for i in range(m) for j in range(n)]
     node_vectors = {(i, j): som_map[i, j] for i, j in nodes}
 
-    # Paso 1: Calcular el centroide de cada nodo
+    # Calcular el centroide de cada nodo
     centroids = {(i, j): som_map[i, j] for i, j in nodes}
 
-    # Paso 2: Asignar un grupo (inicialmente cada nodo es su propio grupo)
+    # Asignar un grupo (inicialmente cada nodo es su propio grupo)
     group_map = {(i, j): idx for idx, (i, j) in enumerate(nodes)}
     groups = {idx: [(i, j)] for idx, (i, j) in enumerate(nodes)}
     group_centroids = {k: np.mean([node_vectors[node] for node in nodes], axis=0)
@@ -18,13 +18,13 @@ def som_clustering(som_map, num_clusters):
     def calculate_group_variance(group_nodes, centroid):
         return sum(np.linalg.norm(node_vectors[n] - centroid) ** 2 for n in group_nodes)
 
-    # Paso 3: Calcular la varianza total
+    # Calcular la varianza total
     def calculate_total_variance(groups, centroids):
         return sum(calculate_group_variance(groups[k], centroids[k]) for k in groups)
 
     V_total = calculate_total_variance(groups, group_centroids)
 
-    # Paso 4: Fusionar grupos vecinos iterativamente
+    # Fusionar grupos vecinos 
     def get_neighbors(i, j, radius=1):
         neighbors = []
         for dx in range(-radius, radius + 1):
@@ -80,3 +80,4 @@ def som_clustering(som_map, num_clusters):
         V_total = min_variance
 
     return groups, group_centroids
+

@@ -11,4 +11,4 @@ BATCH_SIZE = 16
 TOTAL_NODES = 100
 UPDATE_METHOD = "batchmap" # opciones: 'online', 'minibatch', 'batchmap'
 STEP = 3
-SAVE_HISTORY = True
+SAVE_HISTORY = False

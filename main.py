@@ -1,9 +1,8 @@
 # Archivo: main.py
 
 import numpy as np
-from som.som import SoM
-from som.utils import plot_map
-import som.config as config
+from somJ.som import SoM
+import somJ.config as config
 
 def main():
     # 1. Generar datos de ejemplo
@@ -31,10 +30,7 @@ def main():
         save=config.SAVE_HISTORY
     )
 
-    # 4. Visualizar el mapa final
-    som.plot(title="Mapa final del Self-Organizing Map")
-    # También puedes usar directamente la función utilitaria
-    # plot_map(som.som_map, title="Mapa final usando plot_map")
+    print(som.som_map)
 
 if __name__ == "__main__":
     main()
