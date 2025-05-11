@@ -14,4 +14,3 @@ def check_input_data(data):
 def validate_batch_size(batch_size):
     if batch_size is not None and (not isinstance(batch_size, int) or batch_size <= 0):
         raise ValueError("El tamaño del batch debe ser un entero positivo.")
-

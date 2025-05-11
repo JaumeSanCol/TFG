@@ -1,0 +1,12 @@
+setup.py
+TFG.egg-info/PKG-INFO
+TFG.egg-info/SOURCES.txt
+TFG.egg-info/dependency_links.txt
+TFG.egg-info/top_level.txt
+somJ/__init__.py
+somJ/clustering.py
+somJ/config.py
+somJ/k_fold.py
+somJ/metricas.py
+somJ/som.py
+somJ/utils.py
