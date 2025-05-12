@@ -5,6 +5,7 @@ from sklearn.datasets import fetch_openml
 from somJ.som import SoM
 import somJ.config as config
 from minisom import MiniSom
+from sklearn.preprocessing import MinMaxScaler
 
 # ------------------------------------------------------------------------------------------------------------------------------
 #   Experimento para observar el tiempo de jecución nuestra implementación de SOM respecto de MiniSOM en relación al
@@ -16,7 +17,7 @@ from minisom import MiniSom
 # ------------------------------------------------------------------------------------------------------------------------------
 
 
-sample_sizes = [1000, 5000, 10000, 20000] # Máximo 60 000
+sample_sizes = [1000, 5000, 10000, 20000,40000] # Máximo 60 000
 fixed_dimension = 784 # Máximo de MNIST
 epochs = config.EPOCHS
 som_shape = int(np.sqrt(config.TOTAL_NODES))
@@ -24,6 +25,9 @@ som_shape = int(np.sqrt(config.TOTAL_NODES))
 # Cargar MNIST y normalizar
 mnist = fetch_openml('mnist_784', version=1)
 X_all = mnist.data.astype('float32') / 255.0 
+
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X_all)
 
 # Almacenar tiempos
 somJ_times = []
@@ -57,17 +61,23 @@ for n_samples in sample_sizes:
     # MiniSom
     minisom = MiniSom(som_shape, som_shape, fixed_dimension, sigma=config.RADIUS_SQ, learning_rate=config.LEARNING_RATE)
     start_time = time.time()
-    minisom.train_batch(X_sample, epochs*len(X_sample))
+    for i in range(0,epochs):
+        minisom.train_batch(X_sample, len(X_sample))
     minisom_times.append(time.time() - start_time)
+
+# Línea de progresión ideal (lineal)
+k = somJ_times[0] / sample_sizes[0]  # Estimación del tiempo por muestra
+ideal_times = [k * n for n in sample_sizes]
 
 plt.figure(figsize=(8, 6))
 plt.plot(sample_sizes, somJ_times, label='SoM (somJ)', marker='o')
 plt.plot(sample_sizes, minisom_times, label='MiniSom', marker='o')
+plt.plot(sample_sizes, ideal_times, label='Progresión lineal ideal', linestyle='--')
 plt.xlabel('Número de muestras')
 plt.ylabel('Tiempo de entrenamiento (s)')
-plt.title(f'Tiempo vs muestras (dimensión fija: {fixed_dimension})')
+plt.title(f'Tiempo vs muestras')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.savefig(f'experimentos/g_time_comp/tiempos_vs_muestras_{fixed_dimension}_batchmap_fiar.png', dpi=300)
+plt.savefig(f'experimentos/g_time_comp/tiempos_vs_muestras_{fixed_dimension}_batchmap_fair.png', dpi=300)
 plt.show()

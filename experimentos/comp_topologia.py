@@ -8,7 +8,6 @@ import somJ.config as config
 from functions import *
 from somJ.som import SoM
 from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import gc
 import warnings
 from sklearn.model_selection import StratifiedKFold

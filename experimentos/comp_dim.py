@@ -69,7 +69,8 @@ for d in dimensions:
     # MiniSom
     minisom = MiniSom(som_shape, som_shape, d, sigma=config.RADIUS_SQ, learning_rate=config.LEARNING_RATE)
     start_time = time.time()
-    minisom.train_batch(X_sample, epochs*len(X_sample))
+    for i in range(0,epochs):
+        minisom.train_batch(X_sample, len(X_sample))
     minisom_times.append(time.time() - start_time)
 
 # Graficar resultados en una sola figura
@@ -78,7 +79,7 @@ plt.plot(dimensions, somJ_times, label='SoM (somJ)', marker='o')
 plt.plot(dimensions, minisom_times, label='MiniSom', marker='o')
 plt.xlabel('Dimensión de entrada')
 plt.ylabel('Tiempo de entrenamiento (s)')
-plt.title(f'Comparación de tiempo de entrenamiento con {n_samples} muestras')
+plt.title(f'Tiempo vs # de dimensiones de entrada')
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
