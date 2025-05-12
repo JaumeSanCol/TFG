@@ -3,6 +3,7 @@ import time
 import matplotlib.pyplot as plt
 from sklearn.datasets import fetch_openml
 from somJ.som import SoM
+from functions import *
 import somJ.config as config
 from minisom import MiniSom
 from sklearn.metrics import accuracy_score
@@ -49,8 +50,7 @@ fixed_dimension = 784 # Máximo de MNIST
 som_shape = int(np.sqrt(config.TOTAL_NODES))
 
 # Cargar MNIST y normalizar
-mnist = fetch_openml('mnist_784', version=1, cache=True)
-X, y = mnist.data, mnist.target.astype(int)
+X,y=load_dataset("MNIST")
 scaler = MinMaxScaler()
 X_scaled = scaler.fit_transform(X)
 X_train, X_test, y_train, y_test=train_test_split(X_scaled, y, test_size=0.3, random_state=42)
