@@ -173,7 +173,7 @@ class SoM:
         for epoch in range(0,epochs):
 
             if update == 'batchmap':
-                self.update_weights_batchmap(train_data_scaled, radius_sq, step=step, save=save)
+                self.update_weights_batchmap(train_data_scaled, radius_sq, step=step)
                 if save:self.map_history.append(np.copy(self.som_map))
             else:
                 self.rand.shuffle(train_data_scaled)
@@ -184,12 +184,12 @@ class SoM:
                         batches = [train_data_scaled[i:i + batch_size] for i in range(0, len(train_data_scaled), batch_size)]
 
                     for batch in batches:
-                        self.update_weights_minibatch(batch, radius_sq, step=step,save=save)
+                        self.update_weights_minibatch(batch, radius_sq, step=step)
                         if save:self.map_history.append(np.copy(self.som_map))
                 else:
                     for train_ex in train_data_scaled:
                         g, h = self.find_winner(train_ex)
-                        self.update_weights(train_ex, learn_rate, radius_sq, (g, h), step=step,save=save)
+                        self.update_weights(train_ex, learn_rate, radius_sq, (g, h), step=step)
                         if save:self.map_history.append(np.copy(self.som_map))
 
             # Decaimiento de la tasa de aprendizaje y radio

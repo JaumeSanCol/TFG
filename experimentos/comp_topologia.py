@@ -163,7 +163,7 @@ def evaluate_all(datasets, eval_subset_size=5000, n_neighbors=5, random_state=42
         end = time.perf_counter()
         timer["SOM"]=end-start
 
-        # Para evaluar, necesitaremos comprobar el tamaño del dataset, y para dataset grandes utilizaremos un numero de muestras reducidos
+        # Para evaluar, necesitaremos comprobar el tamaño del dataset, y para dataset grandes utilizaremos un número de muestras reducidos
 
         n_samples = len(X)
         if n_samples > eval_subset_size:
