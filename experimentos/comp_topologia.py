@@ -243,6 +243,7 @@ plt.xlabel('Dataset')
 plt.legend(title='Método', loc='upper right')
 plt.tight_layout()
 plt.savefig('experimentos/g_top/trustworthiness_comparacion.png', dpi=300)
+
 # Continuity
 plt.figure(figsize=(12, 8))
 sns.barplot(data=df_results, x="Dataset", y="Continuity", hue="Método")
@@ -253,6 +254,7 @@ plt.xlabel('Dataset')
 plt.legend(title='Método', loc='upper right')
 plt.tight_layout()
 plt.savefig('experimentos/g_top/continuity_comparacion.png', dpi=300)
+
 # Tiempo de ejecución
 plt.figure(figsize=(12, 8))
 sns.barplot(data=df_results, x="Dataset", y="Time", hue="Método")

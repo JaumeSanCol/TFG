@@ -204,29 +204,31 @@ class SoM:
         
         if prog_bar:
             epoch_bar.close()
-        #  Inversa del escalado en el mapa de pesos
-        filas, columnas, n_features = self.som_map.shape
-        som_map_2d = self.som_map.reshape(-1, n_features)
-        som_map_inversed = self.scaler.inverse_transform(som_map_2d)
-        self.som_map = som_map_inversed.reshape(filas, columnas, n_features)
-
+            
         if save:np.save('som_map_history.npy', np.array(self.map_history))
 
     # ------------------------------------------------------------------------------------------------------------------------------
-    # PREDICT     Dado un grupo de muestras, devuleve las coordenadas de la neurona ganadora y su etiqueta más recurrente
+    #  Dado un grupo de muestras, devuleve un diccionario con las estiquetas de cada neurona
     # ------------------------------------------------------------------------------------------------------------------------------
 
-    def predict(self, X_test, y_test):
-        labels_map = {}
-        for xi, label in zip(X_test,y_test):
-            w = self.find_winner(xi)         
-            labels_map.setdefault(w, []).append(label)
+    def neuron_labels(self, X, y):
+        data_scaled = self.scaler.fit_transform(X)
+        label_map = {}
+        for coord, label in zip(data_scaled, y):
+            coord = tuple(coord)
+            label_map.setdefault(coord, []).append(label)
+        neuron_labels = {coord: max(labels, key=labels.count)
+                        for coord, labels in label_map.items()}
+        return neuron_labels
 
-        # Asigna la etiqueta más frecuente por nodo
-        labels_map = {pos: np.bincount(lbls).argmax() 
-                    for pos, lbls in labels_map.items()}
+    # ------------------------------------------------------------------------------------------------------------------------------
+    # Devuelve el mapa del som con el rango de valores original
+    # ------------------------------------------------------------------------------------------------------------------------------
 
-        # Predicción y precisión
-        y_pred = np.array([labels_map[self.find_winner(xi)] for xi in X_test])
+    def re_scale(self):
+        filas, columnas, n_features = self.som_map.shape
+        som_map_2d = self.som_map.reshape(-1, n_features)
+        som_map_inversed = self.scaler.inverse_transform(som_map_2d)
+        map = som_map_inversed.reshape(filas, columnas, n_features)
 
-        return y_pred
+        return map

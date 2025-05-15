@@ -71,21 +71,6 @@ def apply_som_j(X_scaled):
     )
     return som
 
-# Continuity (sin cambios)
-def compute_continuity(X, X_embedded, n_neighbors=5):
-    n_samples = X.shape[0]
-    from sklearn.neighbors import NearestNeighbors
-    nn_orig = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X)
-    neigh_orig = nn_orig.kneighbors(X, return_distance=False)[:, 1:]
-    nn_embed = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X_embedded)
-    neigh_embed = nn_embed.kneighbors(X_embedded, return_distance=False)[:, 1:]
-    ranks = np.zeros(n_samples)
-    for i in range(n_samples):
-        missing = set(neigh_orig[i]) - set(neigh_embed[i])
-        ranks[i] = len(missing)
-    continuity = 1 - (np.mean(ranks) / n_neighbors)
-    return continuity
-
 def evaluate_classification_embedded(X_train_emb, y_train, X_test_emb, y_test):
     # Construir mapa de etiquetas por neurona
     label_map = {}
