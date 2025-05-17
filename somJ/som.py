@@ -15,9 +15,10 @@ class SoM:
         self.scaler = MinMaxScaler()
         self.pca = PCA(n_components=2)
         self.map_history = []
+        
         train_data_scaled = self.scaler.fit_transform(data)
         self.pca.fit(train_data_scaled)
-
+        
         # Definimos en las dimensiones del mapa usando PCA (Kohone)
         l1 = np.sqrt(self.pca.explained_variance_[0])
         l2 = np.sqrt(self.pca.explained_variance_[1])
@@ -32,6 +33,10 @@ class SoM:
             self.init_pca(train_data_scaled)
         else:
             self.init_random()
+
+        # Definirmos mapas de ceros apra realizar las actualizaciones y asi no usarr copias en cada actualización
+        self._new_weights = np.zeros(self.som_map.shape, dtype=float)
+        self._weight_sums  = np.zeros(self.grid_size,    dtype=float)
 
     def init_random(self):
         rows, cols = self.grid_size
@@ -88,8 +93,10 @@ class SoM:
 
     def update_weights_batchmap(self, train_data_scaled, radius_sq, step=3):
         map_h, map_w, dim = self.som_map.shape
-        new_weights = np.zeros_like(self.som_map)
-        weight_sums = np.zeros((map_h, map_w))
+        nw = self._new_weights
+        ws = self._weight_sums
+        nw.fill(0.)
+        ws.fill(0.)
 
         for x in train_data_scaled:
             # Encontrar BMU para la entrada x (según mapa actual)
@@ -109,20 +116,22 @@ class SoM:
             hci = np.exp(-dist_sq / (2 * radius_sq))
 
             # Acumular las actualizaciones ponderadas
-            new_weights[i_min:i_max, j_min:j_max, :] += hci[..., np.newaxis] * x
-            weight_sums[i_min:i_max, j_min:j_max] += hci
+            nw[i_min:i_max, j_min:j_max, :] += hci[..., np.newaxis] * x
+            ws[i_min:i_max, j_min:j_max] += hci
 
         # Dividir suma ponderada entre suma de influencias
-        mask = weight_sums > 0
-        self.som_map[mask] = new_weights[mask] / weight_sums[mask, np.newaxis]
-        self.som_map = np.clip(self.som_map, 0, 1)
+        mask = ws > 0
+        self.som_map[mask] = nw[mask] / ws[mask, np.newaxis]
+        
 
     # MINIBATCH (Actualización por subgrupos aleatorios)
 
     def update_weights_minibatch(self, batch_data, radius_sq, step=3):
         map_h, map_w, dim = self.som_map.shape
-        new_weights = np.zeros_like(self.som_map)
-        weight_sums = np.zeros((map_h, map_w))
+        nw = self._new_weights
+        ws = self._weight_sums
+        nw.fill(0.)
+        ws.fill(0.)
 
         for x in batch_data:
             # Encontrar BMU para la entrada
@@ -142,13 +151,12 @@ class SoM:
             hci = np.exp(-dist_sq / (2 * radius_sq))
 
             # Acumular las actualizaciones ponderadas
-            new_weights[i_min:i_max, j_min:j_max, :] += hci[..., np.newaxis] * x
-            weight_sums[i_min:i_max, j_min:j_max] += hci
+            nw[i_min:i_max, j_min:j_max, :] += hci[..., np.newaxis] * x
+            ws[i_min:i_max, j_min:j_max] += hci
 
         # Dividir suma ponderada entre suma de influencias
-        mask = weight_sums > 0
-        self.som_map[mask] = new_weights[mask] / weight_sums[mask, np.newaxis]
-        self.som_map =np.clip(self.som_map, 0, 1)
+        mask = ws > 0
+        self.som_map[mask] = nw[mask] / ws[mask, np.newaxis]
 
     # ------------------------------------------------------------------------------------------------------------------------------
     #  TRAIN 
@@ -195,8 +203,6 @@ class SoM:
             # Decaimiento de la tasa de aprendizaje y radio
             learn_rate = learn_rate_0 * np.exp(-epoch * lr_decay)
             radius_sq = radius_0 * np.exp(-epoch * radius_decay)
-
-            self.som_map =np.clip(self.som_map, 0, 1)
 
             if prog_bar:
                 epoch_bar.set_postfix(lr=learn_rate, radius=np.sqrt(radius_sq))

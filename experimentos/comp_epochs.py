@@ -9,6 +9,14 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 import matplotlib.colors as mcolors
 
+# ------------------------------------------------------------------------------------------------------------------------------
+#   Experimento para observar la accuracy respecto del numero de epochs usadas durante el entrenamiento
+# ------------------------------------------------------------------------------------------------------------------------------
+#
+#   Los resultados son almacenados en una grafica en la carpeta g_time_comp
+#
+# ------------------------------------------------------------------------------------------------------------------------------
+
 def evaluate_classification_embedded(X_train_emb, y_train, X_test_emb, y_test):
     # Construir mapa de etiquetas por neurona
     label_map = {}
@@ -48,6 +56,7 @@ def run_experiment(dataset_name, num_epochs, total_nodes):
   
     
     for epoch in num_epochs:
+        print(epoch)
           # Entrena SoM (somJ)
         som = SoM(
             method=config.INIT_METHOD,
@@ -99,9 +108,10 @@ def adjust_color(color, factor):
 # ... (tus funciones evaluate_classification_embedded y run_experiment quedan igual)
 
 if __name__ == "__main__":
-    num_epochs    = [1,5,10,15,20,25,30,35,40,45,50]
+    num_epochs    = [1,10,20,30,40,50]
     total_nodes   = config.TOTAL_NODES
-    datasets      = ["Iris", "Digits", "MNIST", "Fashion MNIST"]
+    datasets      = ["MNIST"]
+    # datasets      = ["Iris", "Digits", "MNIST", "Fashion MNIST"]
 
     # Ejecuta experimentos
     results = {ds: run_experiment(ds, num_epochs, total_nodes)
@@ -134,5 +144,5 @@ if __name__ == "__main__":
     plt.legend(loc="best", fontsize="small")
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("experimentos/g_time_comp/acc_vs_epochs_all_datasets.png", dpi=300)
+    plt.savefig("experimentos/g_time_comp/acc_vs_epochs_MNIST_05.png", dpi=300)
     plt.show()

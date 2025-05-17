@@ -34,7 +34,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # obtener información por lo que con una epoch es suficiente. Poner "ajustado" verdadero, significa que para el experimento se
 # usara una sola epoch de Minisom frente a las 50 de SOM. Si es falso, se usarán 50 epochs en cada algoritmo.
 
-AJUSTADO=False
+AJUSTADO=True
 
 
 # Aplica MiniSom y devuelve el objeto entrenado
@@ -174,7 +174,7 @@ if __name__ == '__main__':
     datasets = ['Iris', 'Digits', 'MNIST', 'Fashion MNIST']
     df_results = evaluate_all(datasets, memory=True)
     df_mean = df_results.groupby(["Dataset","Método"]).mean(numeric_only=True).reset_index()
-    print("\n✅ Resultados promediados:")
+    print("\n Resultados promediados:")
     print(df_mean)
     if AJUSTADO:df_mean.to_csv("experimentos/resultados_Class_memory_ajustado.csv", index=False)
     else:df_mean.to_csv("experimentos/resultados_Class_memory.csv", index=False)
