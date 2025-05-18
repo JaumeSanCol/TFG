@@ -59,7 +59,7 @@ def run_experiment(dataset_name, num_epochs, total_nodes):
         print(epoch)
           # Entrena SoM (somJ)
         som = SoM(
-            method=config.INIT_METHOD,
+            method="pca",
             data=X_train,
             total_nodes=total_nodes
         )
@@ -67,15 +67,11 @@ def run_experiment(dataset_name, num_epochs, total_nodes):
         som.train(
             train_data=X_train,
             learn_rate=config.LEARNING_RATE,
-            radius_sq=config.RADIUS_SQ,
-            lr_decay=config.LR_DECAY,
-            radius_decay=config.RADIUS_DECAY,
             epochs=epoch,
-            update=config.UPDATE_METHOD,
+            update="online",
             batch_size=config.BATCH_SIZE,
-            step=config.STEP,
             save=config.SAVE_HISTORY,
-            prog_bar=False
+            prog_bar=True
         )
         X_som_train = np.array([som.find_winner(x) for x in X_train])
         X_som_test  = np.array([som.find_winner(x) for x in X_test])
@@ -84,7 +80,7 @@ def run_experiment(dataset_name, num_epochs, total_nodes):
         
         # Entrena MiniSom
         minisom = MiniSom(grid_size, grid_size, fixed_dim,
-                            sigma=config.RADIUS_SQ,
+                            sigma=config.RADIUS,
                             learning_rate=config.LEARNING_RATE)
         for e in range(0,epoch):
             minisom.train_batch(X_train, len(X_train))
@@ -108,7 +104,8 @@ def adjust_color(color, factor):
 # ... (tus funciones evaluate_classification_embedded y run_experiment quedan igual)
 
 if __name__ == "__main__":
-    num_epochs    = [1,10,20,30,40,50]
+    num_epochs    = [1,5,10,15,25,30
+                     ]
     total_nodes   = config.TOTAL_NODES
     datasets      = ["MNIST"]
     # datasets      = ["Iris", "Digits", "MNIST", "Fashion MNIST"]
@@ -144,5 +141,5 @@ if __name__ == "__main__":
     plt.legend(loc="best", fontsize="small")
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("experimentos/g_time_comp/acc_vs_epochs_MNIST_05.png", dpi=300)
+    plt.savefig("experimentos/g_time_comp/acc_vs_epochs_MNIST_Mejorado.png", dpi=300)
     plt.show()

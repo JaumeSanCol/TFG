@@ -1,7 +1,5 @@
-# Archivo: som/som.py
-
 import numpy as np
-import time 
+import time
 from tqdm import tqdm
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler
@@ -15,203 +13,182 @@ class SoM:
         self.scaler = MinMaxScaler()
         self.pca = PCA(n_components=2)
         self.map_history = []
-        
-        train_data_scaled = self.scaler.fit_transform(data)
-        self.pca.fit(train_data_scaled)
-        
-        # Definimos en las dimensiones del mapa usando PCA (Kohone)
+
+        # Escalado y PCA
+        train_scaled = self.scaler.fit_transform(data)
+        self.pca.fit(train_scaled)
+
+        # Dimensiones del mapa usando varianza de PCA
         l1 = np.sqrt(self.pca.explained_variance_[0])
         l2 = np.sqrt(self.pca.explained_variance_[1])
         ratio = l1 / l2
         n = int(np.round(np.sqrt(total_nodes / ratio)))
         m = int(np.round(ratio * n))
         self.grid_size = (m, n)
-        #print(f"Dimensiones del SOM: m = {m}, n = {n}")
 
-        # Inicializamos
+        # Definimos unas listas del mismo tamaño que los ejes de coordenadas del mapa para guardar las distancias a las BMU durante los calculos
+        rosi, cols = self.grid_size
+        ii, jj = np.meshgrid(np.arange(rosi), np.arange(cols), indexing='ij')
+        self.mat_dist_ii = ii
+        self.mat_dist_jj = jj
+
+        # Inicialización de pesos
         if method == 'pca':
-            self.init_pca(train_data_scaled)
+            self.init_pca(train_scaled)
         else:
             self.init_random()
 
-        # Definirmos mapas de ceros apra realizar las actualizaciones y asi no usarr copias en cada actualización
-        self._new_weights = np.zeros(self.som_map.shape, dtype=float)
-        self._weight_sums  = np.zeros(self.grid_size,    dtype=float)
+        # matrices para los sumatorios de batch
+        self.new_weights = np.zeros(self.som_map.shape, dtype=float)
+        self.suma_influencias = np.zeros(self.grid_size, dtype=float)
 
     def init_random(self):
-        rows, cols = self.grid_size
-        self.som_map =  self.rand.rand(rows, cols, self.input_dim)
-        #print("SOM inicializado aleatoriamente.")
+        rosi, cols = self.grid_size
+        self.som_map = self.rand.rand(rosi, cols, self.input_dim)
 
     def init_pca(self, data):
-        rows, cols = self.grid_size
-        grid_x, grid_y = np.meshgrid(np.linspace(-1, 1, cols), np.linspace(-1, 1, rows))
+        rosi, cols = self.grid_size
+        grid_x, grid_y = np.meshgrid(
+            np.linspace(-1, 1, cols),
+            np.linspace(-1, 1, rosi)
+        )
         grid = np.stack([grid_x.ravel(), grid_y.ravel()], axis=1)
+        projected = grid @ self.pca.components_[:2, :]
+        projected += np.mean(data, axis=0)
+        self.som_map = projected.reshape(rosi, cols, self.input_dim)
+        # se elimina el clip para conservar la variabilidad de PCA
 
-        projected_grid = grid @ self.pca.components_[:2, :]
-        projected_grid += np.mean(data, axis=0)
+    def find_winner(self, x):
+        dist_sq = np.sum((self.som_map - x) ** 2, axis=2)
+        return np.unravel_index(np.argmin(dist_sq, axis=None), dist_sq.shape)
 
-        self.som_map = projected_grid.reshape(rows, cols, self.input_dim)
-        self.som_map =np.clip(self.som_map, 0, 1)
-        #print("SOM inicializado con PCA.")
+    def update_weights(self, x, learn_rate, sigma_sq):
+        # Encontrar la neurona ganadora
+        g, h= self.find_winner(x)
 
+        # Calcular la distancia al cuadrado entre la neurona ganadora y todas las neuronas del mapa (mat_dist)
+        dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
 
-    def find_winner(self,x):
-        distSq = (np.square(self.som_map - x)).sum(axis=2)
-        return np.unravel_index(np.argmin(distSq, axis=None), distSq.shape)
+        # Calcular la inflluencia mediante la vecindad gaussiana multiplicada por el lr
+        inflluence = np.exp(-dist_sq / (2 * sigma_sq))[..., np.newaxis] * learn_rate
 
-    # ------------------------------------------------------------------------------------------------------------------------------    
-    # Actualización de PESOS 
-    # ------------------------------------------------------------------------------------------------------------------------------
-
-    # Online
-
-    def update_weights(self, train_ex, learn_rate, radius_sq, BMU_coord, step=3):
-        g, h = BMU_coord
-        map_h, map_w, dim = self.som_map.shape
-
-        i_min = max(0, g - step)
-        i_max = min(map_h, g + step + 1)
-        j_min = max(0, h - step)
-        j_max = min(map_w, h + step + 1)
-
-        # Coordenadas de los nodos vecinos
-        ii, jj = np.meshgrid(np.arange(i_min, i_max), np.arange(j_min, j_max), indexing='ij')
-        dist_sq = (ii - g)**2 + (jj - h)**2
-
-        # Función de vecindad (gaussiana)
-        influence = np.exp(-dist_sq / (2 * radius_sq)) * learn_rate
-        influence = influence[..., np.newaxis]  # para broadcasting
-
-        # Extraer submapa (vecinos del BMU)
-        submap = self.som_map[i_min:i_max, j_min:j_max, :]
-
-        # Actualización vectorizada
-        self.som_map[i_min:i_max, j_min:j_max, :] += influence * (train_ex - submap)
+        # Sumar al mapa la la matriz de error multiplicado por la matriz de inflluecia
+        self.som_map += inflluence * (x - self.som_map)
 
     # BATCHMAP (TODOS al mismo tiempo)
 
-    def update_weights_batchmap(self, train_data_scaled, radius_sq, step=3):
-        map_h, map_w, dim = self.som_map.shape
-        nw = self._new_weights
-        ws = self._weight_sums
+    def update_weights_batchmap(self, data_scaled, sigma_sq, learn_rate):
+        # Matriz para guardar los valores de acumulados de las actualizaciones del batch
+        nw = self.new_weights  # suma nuevos pesos: inflluecia * muestra
+        si = self.suma_influencias  # suma de inflluecias: incluecias
+
+        # Inicializamos a 0
         nw.fill(0.)
-        ws.fill(0.)
+        si.fill(0.)
 
-        for x in train_data_scaled:
-            # Encontrar BMU para la entrada x (según mapa actual)
+        for x in data_scaled:
             g, h = self.find_winner(x)
-
-            # Definir los vecinos (zona afectada por el BMU)
-            i_min = max(0, g - step)
-            i_max = min(map_h, g + step + 1)
-            j_min = max(0, h - step)
-            j_max = min(map_w, h + step + 1)
-
-            # Coordenadas de la vecindad
-            ii, jj = np.meshgrid(np.arange(i_min, i_max), np.arange(j_min, j_max), indexing='ij')
-            dist_sq = (ii - g)**2 + (jj - h)**2
-
-            # Función gaussiana de vecindad
-            hci = np.exp(-dist_sq / (2 * radius_sq))
-
-            # Acumular las actualizaciones ponderadas
-            nw[i_min:i_max, j_min:j_max, :] += hci[..., np.newaxis] * x
-            ws[i_min:i_max, j_min:j_max] += hci
-
-        # Dividir suma ponderada entre suma de influencias
-        mask = ws > 0
-        self.som_map[mask] = nw[mask] / ws[mask, np.newaxis]
-        
+            # Calcular la distancia al cuadrado entre la neurona ganadora y todas las neuronas del mapa (mat_dist)
+            dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
+            # Calcular la inflluencia mediante la vecindad gaussiana  
+            infl = np.exp(-dist_sq / (2 * sigma_sq))
+            nw += infl[..., np.newaxis] * x
+            si += infl
+        # Elegimos solo lso valores que se ven modificados
+        mask = si > 0
+        new_map = nw[mask] / si[mask, None]
+        self.som_map[mask] += learn_rate * (new_map - self.som_map[mask])
 
     # MINIBATCH (Actualización por subgrupos aleatorios)
 
-    def update_weights_minibatch(self, batch_data, radius_sq, step=3):
-        map_h, map_w, dim = self.som_map.shape
-        nw = self._new_weights
-        ws = self._weight_sums
+    def update_weights_minibatch(self, batch_data, sigma_sq, learn_rate):
+        nw = self.new_weights
+        si = self.suma_influencias
         nw.fill(0.)
-        ws.fill(0.)
-
+        si.fill(0.)
         for x in batch_data:
-            # Encontrar BMU para la entrada
             g, h = self.find_winner(x)
-
-            # Definir los vecinos
-            i_min = max(0, g - step)
-            i_max = min(map_h, g + step + 1)
-            j_min = max(0, h - step)
-            j_max = min(map_w, h + step + 1)
-
-            # Crear la malla de coordenadas para la vecindad
-            ii, jj = np.meshgrid(np.arange(i_min, i_max), np.arange(j_min, j_max), indexing='ij')
-            dist_sq = (ii - g)**2 + (jj - h)**2
-
-            # Calcular la influencia gaussiana para toda la vecindad
-            hci = np.exp(-dist_sq / (2 * radius_sq))
-
-            # Acumular las actualizaciones ponderadas
-            nw[i_min:i_max, j_min:j_max, :] += hci[..., np.newaxis] * x
-            ws[i_min:i_max, j_min:j_max] += hci
-
-        # Dividir suma ponderada entre suma de influencias
-        mask = ws > 0
-        self.som_map[mask] = nw[mask] / ws[mask, np.newaxis]
+            dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
+            infl = np.exp(-dist_sq / (2 * sigma_sq))
+            nw += infl[..., np.newaxis] * x
+            si += infl
+        mask = si > 0
+        new_map = nw[mask] / si[mask, None]
+        self.som_map[mask] += learn_rate * (new_map - self.som_map[mask])
 
     # ------------------------------------------------------------------------------------------------------------------------------
     #  TRAIN 
     # ------------------------------------------------------------------------------------------------------------------------------
+    def train(self, train_data,
+            learn_rate=0.1,
+            sigma=1,
+            epochs=10,
+            update='online',
+            batch_size=None,
+            save=False,
+            prog_bar=False):
 
-    def train(self, train_data, learn_rate=0.1, radius_sq=1, lr_decay=0.1, radius_decay=0.1, epochs=10,
-            update='online',     # Método de actualización
-            batch_size=None,     # Tamaño del batch
-            step=3,              # Radio de modificación (None para calcularlo en base a radius_sq y k)
-            save=False,          # Guardar los valores del som durante el entrenamiento para una animación
-            prog_bar=False):     # Mostrar barra de progreso (Epochs)  
-        
-        train_data_scaled = self.scaler.fit_transform(train_data)
-        
-        if save:self.map_history = [np.copy(self.som_map)]
+        # Escalar los datos de entrada
+        data_scaled = self.scaler.fit_transform(train_data)
+        if save:
+            self.map_history = [np.copy(self.som_map)]
 
-        learn_rate_0 = learn_rate
-        radius_0 = radius_sq
+        # Guardar valores iniciales
+        lr0, rad0 = learn_rate, sigma
+
+        # Prepara decay por paso
+        total_steps = epochs * len(data_scaled)
+        step = 0
+
         # Barra de progreso
-        if prog_bar:epoch_bar = tqdm(range(epochs), desc="Entrenando SOM", ncols=100)
+        if prog_bar:
+            bar = tqdm(range(epochs), desc="Entrenando SOM", ncols=100)
 
-        for epoch in range(0,epochs):
-
+        for epoch in range(epochs):
             if update == 'batchmap':
-                self.update_weights_batchmap(train_data_scaled, radius_sq, step=step)
-                if save:self.map_history.append(np.copy(self.som_map))
+                # Actualizar los valores de learning rate y sigma²
+                sigma_t_sq = (rad0 * np.exp(-step / total_steps))**2
+                lr_t = lr0 * np.exp(-step / total_steps)
+                
+                self.update_weights_batchmap(data_scaled, sigma_t_sq, lr_t)
+
+                if save:
+                    self.map_history.append(np.copy(self.som_map))
+
+                step += len(data_scaled)
             else:
-                self.rand.shuffle(train_data_scaled)
+                self.rand.shuffle(data_scaled)
                 if update == 'minibatch':
-                    if batch_size is None:
-                        batches = [train_data_scaled]
-                    else:
-                        batches = [train_data_scaled[i:i + batch_size] for i in range(0, len(train_data_scaled), batch_size)]
-
-                    for batch in batches:
-                        self.update_weights_minibatch(batch, radius_sq, step=step)
-                        if save:self.map_history.append(np.copy(self.som_map))
+                    batches = [data_scaled] if batch_size is None else [
+                        data_scaled[i:i+batch_size]
+                        for i in range(0, len(data_scaled), batch_size)
+                    ]
+                    for b in batches:
+                        sigma_t_sq = (rad0 * np.exp(-step / total_steps))**2
+                        lr_t = lr0    / (1 + step/(epochs*len(data_scaled)/2))
+                        self.update_weights_minibatch(b, sigma_t_sq, lr_t)
+                        if save:
+                            self.map_history.append(np.copy(self.som_map))
+                        step += len(b)
                 else:
-                    for train_ex in train_data_scaled:
-                        g, h = self.find_winner(train_ex)
-                        self.update_weights(train_ex, learn_rate, radius_sq, (g, h), step=step)
-                        if save:self.map_history.append(np.copy(self.som_map))
+                    for x in data_scaled:
+                        sigma_t_sq = (rad0 * np.exp(-step / total_steps))**2
+                        lr_t = lr0 * np.exp(-step / total_steps)
+                        
+                        self.update_weights(x, lr_t, sigma_t_sq)
 
-            # Decaimiento de la tasa de aprendizaje y radio
-            learn_rate = learn_rate_0 * np.exp(-epoch * lr_decay)
-            radius_sq = radius_0 * np.exp(-epoch * radius_decay)
+                        if save:
+                            self.map_history.append(np.copy(self.som_map))
+                        step += 1
 
             if prog_bar:
-                epoch_bar.set_postfix(lr=learn_rate, radius=np.sqrt(radius_sq))
-                epoch_bar.update(1)
-        
+                bar.set_postfix(lr=lr_t, sigma_sq=sigma_t_sq)
+                bar.update(1)
+
         if prog_bar:
-            epoch_bar.close()
-            
-        if save:np.save('som_map_history.npy', np.array(self.map_history))
+            bar.close()
+        if save:
+            np.save('som_map_history.npy', np.array(self.map_history))
 
     # ------------------------------------------------------------------------------------------------------------------------------
     #  Dado un grupo de muestras, devuleve un diccionario con las estiquetas de cada neurona
@@ -227,6 +204,7 @@ class SoM:
                         for coord, labels in label_map.items()}
         return neuron_labels
 
+    
     # ------------------------------------------------------------------------------------------------------------------------------
     # Devuelve el mapa del som con el rango de valores original
     # ------------------------------------------------------------------------------------------------------------------------------

@@ -34,7 +34,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # obtener información por lo que con una epoch es suficiente. Poner "ajustado" verdadero, significa que para el experimento se
 # usara una sola epoch de Minisom frente a las 50 de SOM. Si es falso, se usarán 50 epochs en cada algoritmo.
 
-AJUSTADO=True
+AJUSTADO=False
 
 
 # Aplica MiniSom y devuelve el objeto entrenado
@@ -43,29 +43,25 @@ def apply_som(X_sample):
     epochs = config.EPOCHS
     som_shape = int(np.sqrt(config.TOTAL_NODES))
     minisom = MiniSom(som_shape, som_shape, X_sample.shape[1], 
-                      sigma=config.RADIUS_SQ, learning_rate=config.LEARNING_RATE,
+                      sigma=1, learning_rate=config.LEARNING_RATE,
                       random_seed=42)
     if AJUSTADO:
         minisom.train_batch(X_sample, len(X_sample))
     else:
-        for i in range(0,epochs):
+        for i in range(3):
             minisom.train_batch(X_sample, len(X_sample))
     return minisom
 
 # Aplica tu implementación SoM y devuelve el objeto entrenado
 
 def apply_som_j(X_scaled):
-    som = SoM(method=config.INIT_METHOD, data=X_scaled, total_nodes=config.TOTAL_NODES)
+    som = SoM(method="pca", data=X_scaled, total_nodes=config.TOTAL_NODES)
     som.train(
         train_data=X_scaled,
         learn_rate=config.LEARNING_RATE,
-        radius_sq=config.RADIUS_SQ,
-        lr_decay=config.LR_DECAY,
-        radius_decay=config.RADIUS_DECAY,
-        epochs=config.EPOCHS,
-        update=config.UPDATE_METHOD,
-        batch_size=config.BATCH_SIZE,
-        step=config.STEP,
+        sigma=1,
+        epochs=3,
+        update="online",
         save=config.SAVE_HISTORY,
         prog_bar=False
     )
@@ -177,7 +173,7 @@ if __name__ == '__main__':
     print("\n Resultados promediados:")
     print(df_mean)
     if AJUSTADO:df_mean.to_csv("experimentos/resultados_Class_memory_ajustado.csv", index=False)
-    else:df_mean.to_csv("experimentos/resultados_Class_memory.csv", index=False)
+    else:df_mean.to_csv("experimentos/resultados_Class_memory_mejorado.csv", index=False)
 
     sns.set(style="whitegrid", font_scale=1.2)
     order = ["Iris","Digits","MNIST","Fashion MNIST"]
@@ -189,6 +185,6 @@ if __name__ == '__main__':
         plt.ylim(0, df_mean[metric].max()*1.1)
         plt.legend(title="Método", bbox_to_anchor=(1.02,1), loc='upper left')
         plt.tight_layout(rect=[0,0,0.85,1])
-        if AJUSTADO:plt.savefig(f"experimentos/g_class/ajustado/grafico_{metric.lower()}_ajustado.png")
-        else:plt.savefig(f"experimentos/g_class/ajustado/grafico_{metric.lower()}.png")
+        if AJUSTADO:plt.savefig(f"experimentos/g_class/mejorado/grafico_{metric.lower()}_ajustado.png")
+        else:plt.savefig(f"experimentos/g_class/mejorado/grafico_{metric.lower()}.png")
         plt.show()
