@@ -68,6 +68,7 @@ def run_experiment(dataset_name, num_epochs, total_nodes):
             train_data=X_train,
             learn_rate=config.LEARNING_RATE,
             epochs=epoch,
+            decay_func_name="linear",
             update="online",
             batch_size=config.BATCH_SIZE,
             save=config.SAVE_HISTORY,
@@ -104,7 +105,7 @@ def adjust_color(color, factor):
 # ... (tus funciones evaluate_classification_embedded y run_experiment quedan igual)
 
 if __name__ == "__main__":
-    num_epochs    = [1,5,10,15,25,30
+    num_epochs    = [1,5,10,15,25,30,50
                      ]
     total_nodes   = config.TOTAL_NODES
     datasets      = ["MNIST"]

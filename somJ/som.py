@@ -5,6 +5,13 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler
 from somJ.utils import check_input_data, validate_batch_size
 
+
+def decay_exp(valor_ini, step, total_steps,decay_rate):
+    return valor_ini * np.exp(-step *decay_rate/ total_steps)
+
+def decay_lin(valor_ini, step, total_steps):
+    return valor_ini *(1-(step / total_steps))
+
 class SoM:
     def __init__(self, method='random', data=None, total_nodes=100):
         check_input_data(data)
@@ -13,7 +20,7 @@ class SoM:
         self.scaler = MinMaxScaler()
         self.pca = PCA(n_components=2)
         self.map_history = []
-
+        self.decay_func=None
         # Escalado y PCA
         train_scaled = self.scaler.fit_transform(data)
         self.pca.fit(train_scaled)
@@ -25,12 +32,14 @@ class SoM:
         n = int(np.round(np.sqrt(total_nodes / ratio)))
         m = int(np.round(ratio * n))
         self.grid_size = (m, n)
+        del l1,l2,ratio,m,n
 
         # Definimos unas listas del mismo tamaño que los ejes de coordenadas del mapa para guardar las distancias a las BMU durante los calculos
         rosi, cols = self.grid_size
         ii, jj = np.meshgrid(np.arange(rosi), np.arange(cols), indexing='ij')
         self.mat_dist_ii = ii
         self.mat_dist_jj = jj
+        del ii,jj
 
         # Inicialización de pesos
         if method == 'pca':
@@ -62,6 +71,13 @@ class SoM:
         dist_sq = np.sum((self.som_map - x) ** 2, axis=2)
         return np.unravel_index(np.argmin(dist_sq, axis=None), dist_sq.shape)
 
+    def decay(self,valor_ini, step, total_steps):
+        if self.decay_func=="linear":
+            return decay_lin(valor_ini, step, total_steps)
+        elif self.decay_func=="exp":
+            return decay_exp(valor_ini, step, total_steps,self.decay_rate)
+        else:raise ValueError(f"Función de descomposición no reconocida:{self.decay_func}")
+        
     def update_weights(self, x, learn_rate, sigma_sq):
         # Encontrar la neurona ganadora
         g, h= self.find_winner(x)
@@ -69,11 +85,11 @@ class SoM:
         # Calcular la distancia al cuadrado entre la neurona ganadora y todas las neuronas del mapa (mat_dist)
         dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
 
-        # Calcular la inflluencia mediante la vecindad gaussiana multiplicada por el lr
-        inflluence = np.exp(-dist_sq / (2 * sigma_sq))[..., np.newaxis] * learn_rate
+        # Calcular la inflluencia (hci) mediante la vecindad gaussiana multiplicada por el lr
+        hci = np.exp(-dist_sq / (2 * sigma_sq))[..., np.newaxis] * learn_rate
 
         # Sumar al mapa la la matriz de error multiplicado por la matriz de inflluecia
-        self.som_map += inflluence * (x - self.som_map)
+        self.som_map += hci * (x - self.som_map)
 
     # BATCHMAP (TODOS al mismo tiempo)
 
@@ -91,9 +107,9 @@ class SoM:
             # Calcular la distancia al cuadrado entre la neurona ganadora y todas las neuronas del mapa (mat_dist)
             dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
             # Calcular la inflluencia mediante la vecindad gaussiana  
-            infl = np.exp(-dist_sq / (2 * sigma_sq))
-            nw += infl[..., np.newaxis] * x
-            si += infl
+            hci = np.exp(-dist_sq / (2 * sigma_sq))
+            nw += hci[..., np.newaxis] * x
+            si += hci
         # Elegimos solo lso valores que se ven modificados
         mask = si > 0
         new_map = nw[mask] / si[mask, None]
@@ -109,9 +125,9 @@ class SoM:
         for x in batch_data:
             g, h = self.find_winner(x)
             dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
-            infl = np.exp(-dist_sq / (2 * sigma_sq))
-            nw += infl[..., np.newaxis] * x
-            si += infl
+            hci = np.exp(-dist_sq / (2 * sigma_sq))
+            nw += hci[..., np.newaxis] * x
+            si += hci
         mask = si > 0
         new_map = nw[mask] / si[mask, None]
         self.som_map[mask] += learn_rate * (new_map - self.som_map[mask])
@@ -120,13 +136,15 @@ class SoM:
     #  TRAIN 
     # ------------------------------------------------------------------------------------------------------------------------------
     def train(self, train_data,
-            learn_rate=0.1,
-            sigma=1,
+            learn_rate=0.1,             # Learning rate inicial
+            sigma=1,                    # Valor inicial de sigma para definir la influencia
             epochs=10,
-            update='online',
-            batch_size=None,
-            save=False,
-            prog_bar=False):
+            decay_func_name="exp",      # Función de descomposición: "linear" o "exp"
+            decay_rate=1,               # Valor para escalar la descomposición exponencial, a mayor valor, mayor descomposición
+            update='online',            # Método de actualización: "online", "bathmap", "minibatch"
+            batch_size=None,            # Tamaño del minibatch
+            save=False,                 # Guardar estado del mapa de pesos
+            prog_bar=False):            # Mostrar barra de progreso
 
         # Escalar los datos de entrada
         data_scaled = self.scaler.fit_transform(train_data)
@@ -140,6 +158,10 @@ class SoM:
         total_steps = epochs * len(data_scaled)
         step = 0
 
+        # Asignamos la función de decay y el valor de tau
+        self.decay_func=decay_func_name
+        self.decay_rate=decay_rate
+
         # Barra de progreso
         if prog_bar:
             bar = tqdm(range(epochs), desc="Entrenando SOM", ncols=100)
@@ -147,9 +169,9 @@ class SoM:
         for epoch in range(epochs):
             if update == 'batchmap':
                 # Actualizar los valores de learning rate y sigma²
-                sigma_t_sq = (rad0 * np.exp(-step / total_steps))**2
-                lr_t = lr0 * np.exp(-step / total_steps)
-                
+                sigma_t_sq = (self.decay(rad0,step,total_steps))**2
+                lr_t =self.decay(lr0,step,total_steps)
+
                 self.update_weights_batchmap(data_scaled, sigma_t_sq, lr_t)
 
                 if save:
@@ -164,16 +186,16 @@ class SoM:
                         for i in range(0, len(data_scaled), batch_size)
                     ]
                     for b in batches:
-                        sigma_t_sq = (rad0 * np.exp(-step / total_steps))**2
-                        lr_t = lr0    / (1 + step/(epochs*len(data_scaled)/2))
+                        sigma_t_sq = (self.decay(rad0,step,total_steps))**2
+                        lr_t = self.decay(lr0,step,total_steps)
                         self.update_weights_minibatch(b, sigma_t_sq, lr_t)
                         if save:
                             self.map_history.append(np.copy(self.som_map))
                         step += len(b)
                 else:
                     for x in data_scaled:
-                        sigma_t_sq = (rad0 * np.exp(-step / total_steps))**2
-                        lr_t = lr0 * np.exp(-step / total_steps)
+                        sigma_t_sq = (self.decay(rad0,step,total_steps))**2
+                        lr_t = self.decay(lr0,step,total_steps)
                         
                         self.update_weights(x, lr_t, sigma_t_sq)
 
