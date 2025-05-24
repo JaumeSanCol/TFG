@@ -7,7 +7,7 @@ import time
 import somJ.config as config
 from functions import *
 from somJ.som import SoM
-from sklearn.neighbors import NearestNeighbors, KNeighborsClassifier
+from sklearn.neighbors import NearestNeighbors
 import gc
 import warnings
 from sklearn.model_selection import StratifiedKFold
@@ -142,8 +142,6 @@ def evaluate_all(datasets, eval_subset_size=5000, n_neighbors=5, random_state=42
     for name in datasets:
         print(f"\n Dataset: {name}")
         X, y = load_dataset(name)
-
-        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
         timer={}
 
         # Obtener los embedings de
@@ -172,7 +170,6 @@ def evaluate_all(datasets, eval_subset_size=5000, n_neighbors=5, random_state=42
             idx = np.arange(n_samples)
 
         # Hacemos subsets con las mismas muestras
-
         X_subset = X[idx]
         y_subset = y[idx]
         X_umap_subset = X_umap[idx]

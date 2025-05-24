@@ -68,8 +68,14 @@ class SoM:
         # se elimina el clip para conservar la variabilidad de PCA
 
     def find_winner(self, x):
-        dist_sq = np.sum((self.som_map - x) ** 2, axis=2)
+        dist_sq = np.sum((self.som_map - x) ** 2, axis=2) 
         return np.unravel_index(np.argmin(dist_sq, axis=None), dist_sq.shape)
+    def find_all_winner(self, X):
+        X_scaled=self.scaler.fit_transform(X)
+        winner_list=[]
+        for x in X_scaled:
+            winner_list.append(self.find_winner(x))
+        return winner_list
 
     def decay(self,valor_ini, step, total_steps):
         if self.decay_func=="linear":
@@ -85,11 +91,11 @@ class SoM:
         # Calcular la distancia al cuadrado entre la neurona ganadora y todas las neuronas del mapa (mat_dist)
         dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
 
-        # Calcular la inflluencia (hci) mediante la vecindad gaussiana multiplicada por el lr
-        hci = np.exp(-dist_sq / (2 * sigma_sq))[..., np.newaxis] * learn_rate
+        # Calcular la inflluencia (hci) mediante la vecindad gaussiana
+        hci = np.exp(-dist_sq / (2 * sigma_sq))[..., np.newaxis] 
 
-        # Sumar al mapa la la matriz de error multiplicado por la matriz de inflluecia
-        self.som_map += hci * (x - self.som_map)
+        # Sumar al mapa la la matriz de error multiplicado por la matriz de inflluecia multiplicada por el lr
+        self.som_map += learn_rate* hci * (x - self.som_map)
 
     # BATCHMAP (TODOS al mismo tiempo)
 
@@ -184,7 +190,7 @@ class SoM:
                     batches = [data_scaled] if batch_size is None else [
                         data_scaled[i:i+batch_size]
                         for i in range(0, len(data_scaled), batch_size)
-                    ]
+                    ]                                                                                           
                     for b in batches:
                         sigma_t_sq = (self.decay(rad0,step,total_steps))**2
                         lr_t = self.decay(lr0,step,total_steps)
@@ -217,9 +223,8 @@ class SoM:
     # ------------------------------------------------------------------------------------------------------------------------------
 
     def neuron_labels(self, X, y):
-        data_scaled = self.scaler.fit_transform(X)
         label_map = {}
-        for coord, label in zip(data_scaled, y):
+        for coord, label in zip(X, y):
             coord = tuple(coord)
             label_map.setdefault(coord, []).append(label)
         neuron_labels = {coord: max(labels, key=labels.count)
@@ -238,3 +243,25 @@ class SoM:
         map = som_map_inversed.reshape(filas, columnas, n_features)
 
         return map
+    
+    # ------------------------------------------------------------------------------------------------------------------------------
+    # Devuelve el una lista de predicciones para X_predict. Utiliza X_label para asignar etiquetas al mapa
+    # ------------------------------------------------------------------------------------------------------------------------------
+
+
+    def predict(self,X_label,y_label,X_predict):
+        X_som_test  = np.array(self.find_all_winner(X_predict))
+        neuron_labels=self.neuron_labels(X_label,y_label)
+        y_pred = []
+        bar = tqdm(total=len(X_predict), desc="    Prediciendo", ncols=80)
+        for x in X_som_test:
+            coord = tuple(x)
+            if coord in neuron_labels:
+                y_pred.append(neuron_labels[coord])
+            else:
+                # buscamos la neurona etiquetada más cercana
+                dists = [(coord[0] - c[0])**2 + (coord[1] - c[1])**2
+                         for c in neuron_labels.keys()]
+                nearest = list(neuron_labels.keys())[np.argmin(dists)]
+                y_pred.append(neuron_labels[nearest])
+        return y_pred
