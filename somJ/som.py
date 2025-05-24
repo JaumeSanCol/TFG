@@ -120,24 +120,6 @@ class SoM:
         mask = si > 0
         new_map = nw[mask] / si[mask, None]
         self.som_map[mask] += learn_rate * (new_map - self.som_map[mask])
-
-    # MINIBATCH (Actualización por subgrupos aleatorios)
-
-    def update_weights_minibatch(self, batch_data, sigma_sq, learn_rate):
-        nw = self.new_weights
-        si = self.suma_influencias
-        nw.fill(0.)
-        si.fill(0.)
-        for x in batch_data:
-            g, h = self.find_winner(x)
-            dist_sq = (self.mat_dist_ii - g) ** 2 + (self.mat_dist_jj - h) ** 2
-            hci = np.exp(-dist_sq / (2 * sigma_sq))
-            nw += hci[..., np.newaxis] * x
-            si += hci
-        mask = si > 0
-        new_map = nw[mask] / si[mask, None]
-        self.som_map[mask] += learn_rate * (new_map - self.som_map[mask])
-
     # ------------------------------------------------------------------------------------------------------------------------------
     #  TRAIN 
     # ------------------------------------------------------------------------------------------------------------------------------
@@ -154,8 +136,6 @@ class SoM:
 
         # Escalar los datos de entrada
         data_scaled = self.scaler.fit_transform(train_data)
-        if save:
-            self.map_history = [np.copy(self.som_map)]
 
         # Guardar valores iniciales
         lr0, rad0 = learn_rate, sigma
@@ -194,7 +174,7 @@ class SoM:
                     for b in batches:
                         sigma_t_sq = (self.decay(rad0,step,total_steps))**2
                         lr_t = self.decay(lr0,step,total_steps)
-                        self.update_weights_minibatch(b, sigma_t_sq, lr_t)
+                        self.update_weights_batchmap(b, sigma_t_sq, lr_t)
                         if save:
                             self.map_history.append(np.copy(self.som_map))
                         step += len(b)
@@ -215,8 +195,6 @@ class SoM:
 
         if prog_bar:
             bar.close()
-        if save:
-            np.save('som_map_history.npy', np.array(self.map_history))
 
     # ------------------------------------------------------------------------------------------------------------------------------
     #  Dado un grupo de muestras, devuleve un diccionario con las estiquetas de cada neurona
