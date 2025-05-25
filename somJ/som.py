@@ -13,7 +13,7 @@ def decay_lin(valor_ini, step, total_steps):
     return valor_ini *(1-(step / total_steps))
 
 class SoM:
-    def __init__(self, method='random', data=None, total_nodes=100):
+    def __init__(self, method='pca', data=None, total_nodes=100):
         check_input_data(data)
         self.rand = np.random.RandomState(0)
         self.input_dim = data.shape[1]
@@ -32,30 +32,28 @@ class SoM:
         n = int(np.round(np.sqrt(total_nodes / ratio)))
         m = int(np.round(ratio * n))
         self.grid_size = (m, n)
-        del l1,l2,ratio,m,n
 
-        # Definimos unas listas del mismo tamaño que los ejes de coordenadas del mapa para guardar las distancias a las BMU durante los calculos
+        # Definimos unas matrices del mismo tamaño que los ejes de coordenadas del mapa para guardar las distancias a las BMU durante los calculos
         rosi, cols = self.grid_size
         ii, jj = np.meshgrid(np.arange(rosi), np.arange(cols), indexing='ij')
         self.mat_dist_ii = ii
         self.mat_dist_jj = jj
-        del ii,jj
 
         # Inicialización de pesos
         if method == 'pca':
-            self.init_pca(train_scaled)
+            self._init_pca(train_scaled)
         else:
-            self.init_random()
+            self._init_random()
 
         # matrices para los sumatorios de batch
         self.new_weights = np.zeros(self.som_map.shape, dtype=float)
         self.suma_influencias = np.zeros(self.grid_size, dtype=float)
 
-    def init_random(self):
+    def _init_random(self):
         rosi, cols = self.grid_size
         self.som_map = self.rand.rand(rosi, cols, self.input_dim)
 
-    def init_pca(self, data):
+    def _init_pca(self, data):
         rosi, cols = self.grid_size
         grid_x, grid_y = np.meshgrid(
             np.linspace(-1, 1, cols),
@@ -65,11 +63,11 @@ class SoM:
         projected = grid @ self.pca.components_[:2, :]
         projected += np.mean(data, axis=0)
         self.som_map = projected.reshape(rosi, cols, self.input_dim)
-        # se elimina el clip para conservar la variabilidad de PCA
 
     def find_winner(self, x):
         dist_sq = np.sum((self.som_map - x) ** 2, axis=2) 
         return np.unravel_index(np.argmin(dist_sq, axis=None), dist_sq.shape)
+    
     def find_all_winner(self, X):
         X_scaled=self.scaler.fit_transform(X)
         winner_list=[]
@@ -77,14 +75,14 @@ class SoM:
             winner_list.append(self.find_winner(x))
         return winner_list
 
-    def decay(self,valor_ini, step, total_steps):
+    def _decay(self,valor_ini, step, total_steps):
         if self.decay_func=="linear":
             return decay_lin(valor_ini, step, total_steps)
         elif self.decay_func=="exp":
             return decay_exp(valor_ini, step, total_steps,self.decay_rate)
         else:raise ValueError(f"Función de descomposición no reconocida:{self.decay_func}")
         
-    def update_weights(self, x, learn_rate, sigma_sq):
+    def _update_weights(self, x, learn_rate, sigma_sq):
         # Encontrar la neurona ganadora
         g, h= self.find_winner(x)
 
@@ -99,7 +97,7 @@ class SoM:
 
     # BATCHMAP (TODOS al mismo tiempo)
 
-    def update_weights_batchmap(self, data_scaled, sigma_sq, learn_rate):
+    def _update_weights_batchmap(self, data_scaled, sigma_sq, learn_rate):
         # Matriz para guardar los valores de acumulados de las actualizaciones del batch
         nw = self.new_weights  # suma nuevos pesos: inflluecia * muestra
         si = self.suma_influencias  # suma de inflluecias: incluecias
@@ -120,6 +118,7 @@ class SoM:
         mask = si > 0
         new_map = nw[mask] / si[mask, None]
         self.som_map[mask] += learn_rate * (new_map - self.som_map[mask])
+
     # ------------------------------------------------------------------------------------------------------------------------------
     #  TRAIN 
     # ------------------------------------------------------------------------------------------------------------------------------
@@ -155,10 +154,10 @@ class SoM:
         for epoch in range(epochs):
             if update == 'batchmap':
                 # Actualizar los valores de learning rate y sigma²
-                sigma_t_sq = (self.decay(rad0,step,total_steps))**2
-                lr_t =self.decay(lr0,step,total_steps)
+                sigma_t_sq = (self._decay(rad0,step,total_steps))**2
+                lr_t =self._decay(lr0,step,total_steps)
 
-                self.update_weights_batchmap(data_scaled, sigma_t_sq, lr_t)
+                self._update_weights_batchmap(data_scaled, sigma_t_sq, lr_t)
 
                 if save:
                     self.map_history.append(np.copy(self.som_map))
@@ -172,18 +171,18 @@ class SoM:
                         for i in range(0, len(data_scaled), batch_size)
                     ]                                                                                           
                     for b in batches:
-                        sigma_t_sq = (self.decay(rad0,step,total_steps))**2
-                        lr_t = self.decay(lr0,step,total_steps)
-                        self.update_weights_batchmap(b, sigma_t_sq, lr_t)
+                        sigma_t_sq = (self._decay(rad0,step,total_steps))**2
+                        lr_t = self._decay(lr0,step,total_steps)
+                        self._update_weights_batchmap(b, sigma_t_sq, lr_t)
                         if save:
                             self.map_history.append(np.copy(self.som_map))
                         step += len(b)
                 else:
                     for x in data_scaled:
-                        sigma_t_sq = (self.decay(rad0,step,total_steps))**2
-                        lr_t = self.decay(lr0,step,total_steps)
+                        sigma_t_sq = (self._decay(rad0,step,total_steps))**2
+                        lr_t = self._decay(lr0,step,total_steps)
                         
-                        self.update_weights(x, lr_t, sigma_t_sq)
+                        self._update_weights(x, lr_t, sigma_t_sq)
 
                         if save:
                             self.map_history.append(np.copy(self.som_map))
