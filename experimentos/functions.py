@@ -1,7 +1,9 @@
 from sklearn.datasets import load_iris, load_digits
 from keras.datasets import mnist, fashion_mnist
 import pandas as pd
-
+import networkx as nx
+import numpy as np
+from sklearn.neighbors import NearestNeighbors
 def reduce_mem_usage(df):
     for col in df.columns:
         col_type = df[col].dtype
@@ -48,3 +50,42 @@ def load_dataset(name):
     X = reduce_mem_usage(X)
 
     return X.values, y
+
+def compute_continuity(X, X_embedded, n_neighbors=5):
+    n_samples = X.shape[0]
+    nn_orig = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X)
+    neigh_orig = nn_orig.kneighbors(X, return_distance=False)[:, 1:]
+    nn_embed = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X_embedded)
+    neigh_embed = nn_embed.kneighbors(X_embedded, return_distance=False)[:, 1:]
+
+    ranks = np.zeros(n_samples)
+    for i in range(n_samples):
+        missing = set(neigh_orig[i]) - set(neigh_embed[i])
+        ranks[i] = len(missing)
+
+    continuity = 1 - (np.mean(ranks) / n_neighbors)
+    return continuity
+
+
+def compute_som_continuity_quantization(X, M, n_rows, n_cols):
+    n_units = M.shape[0]
+    G = nx.Graph()
+    for i in range(n_units):
+        r, c = divmod(i, n_cols)
+        for dr, dc in [(1,0),(-1,0),(0,1),(0,-1)]:
+            rr, cc = r+dr, c+dc
+            if 0 <= rr < n_rows and 0 <= cc < n_cols:
+                j = rr * n_cols + cc
+                G.add_edge(i, j, weight=np.linalg.norm(M[i] - M[j]))
+
+    dists = np.linalg.norm(X[:, None, :] - M[None, :, :], axis=2)
+    bmus = np.argsort(dists, axis=1)[:, :2]
+
+    d_x = np.zeros(X.shape[0])
+    for idx in range(X.shape[0]):
+        bmu, second = bmus[idx]
+        q_err = dists[idx, bmu]
+        topo = nx.shortest_path_length(G, bmu, second, weight='weight')
+        d_x[idx] = q_err + topo
+
+    return d_x.mean()

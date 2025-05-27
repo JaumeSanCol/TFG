@@ -125,7 +125,7 @@ class SoM:
     def train(self, train_data,
             learn_rate=0.1,             # Learning rate inicial
             sigma=1,                    # Valor inicial de sigma para definir la influencia
-            epochs=10,
+            epochs=1,
             decay_func_name="exp",      # Función de descomposición: "linear" o "exp"
             decay_rate=1,               # Valor para escalar la descomposición exponencial, a mayor valor, mayor descomposición
             update='online',            # Método de actualización: "online", "bathmap", "minibatch"
