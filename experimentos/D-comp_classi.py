@@ -34,7 +34,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # obtener información por lo que con una epoch es suficiente. Poner "ajustado" verdadero, significa que para el experimento se
 # usara una sola epoch de Minisom frente a las 50 de SOM. Si es falso, se usarán 50 epochs en cada algoritmo.
 
-AJUSTADO=False
 
 
 # Aplica MiniSom y devuelve el objeto entrenado
@@ -45,11 +44,7 @@ def apply_som(X_sample):
     minisom = MiniSom(som_shape, som_shape, X_sample.shape[1], 
                       sigma=1, learning_rate=config.LEARNING_RATE,
                       random_seed=42)
-    if AJUSTADO:
-        minisom.train_batch(X_sample, len(X_sample))
-    else:
-        for i in range(3):
-            minisom.train_batch(X_sample, len(X_sample))
+    minisom.train_batch(X_sample, len(X_sample))
     return minisom
 
 # Aplica tu implementación SoM y devuelve el objeto entrenado
@@ -60,7 +55,7 @@ def apply_som_j(X_scaled):
         train_data=X_scaled,
         learn_rate=config.LEARNING_RATE,
         sigma=1,
-        epochs=3,
+        epochs=1,
         update="online",
         save=config.SAVE_HISTORY,
         prog_bar=False
@@ -172,10 +167,10 @@ if __name__ == '__main__':
     df_mean = df_results.groupby(["Dataset","Método"]).mean(numeric_only=True).reset_index()
     print("\n Resultados promediados:")
     print(df_mean)
-    if AJUSTADO:df_mean.to_csv("experimentos/resultados_Class_memory_ajustado.csv", index=False)
-    else:df_mean.to_csv("experimentos/resultados_Class_memory_mejorado.csv", index=False)
+    df_mean.to_csv("experimentos/resultados_Class_memory_mejorado.csv", index=False)
 
     sns.set(style="whitegrid", font_scale=1.2)
+    sns.set_palette('deep', n_colors=4)
     order = ["Iris","Digits","MNIST","Fashion MNIST"]
     metrics = ["Accuracy","Precision","Recall","F1","Time (s)","Memory (Mb)"]
     for metric in metrics:
@@ -185,6 +180,5 @@ if __name__ == '__main__':
         plt.ylim(0, df_mean[metric].max()*1.1)
         plt.legend(title="Método", bbox_to_anchor=(1.02,1), loc='upper left')
         plt.tight_layout(rect=[0,0,0.85,1])
-        if AJUSTADO:plt.savefig(f"experimentos/g_class/mejorado/grafico_{metric.lower()}_ajustado.png")
-        else:plt.savefig(f"experimentos/g_class/mejorado/grafico_{metric.lower()}.png")
+        plt.savefig(f"experimentos/g_class/mejorado/grafico_{metric.lower()}.png")
         plt.show()
