@@ -12,6 +12,9 @@ def decay_exp(valor_ini, step, total_steps,decay_rate):
 def decay_lin(valor_ini, step, total_steps):
     return valor_ini *(1-(step / total_steps))
 
+def asymptotic_decay(valor_ini, t, max_iter):
+    return valor_ini / (1 + t / (max_iter / 2))
+
 class SoM:
     def __init__(self, method='pca', data=None, total_nodes=100):
         check_input_data(data)
@@ -78,6 +81,8 @@ class SoM:
     def _decay(self,valor_ini, step, total_steps):
         if self.decay_func=="linear":
             return decay_lin(valor_ini, step, total_steps)
+        elif self.decay_func=="asymptotic_decay":
+            return asymptotic_decay(valor_ini, step, total_steps)
         elif self.decay_func=="exp":
             return decay_exp(valor_ini, step, total_steps,self.decay_rate)
         else:raise ValueError(f"Función de descomposición no reconocida:{self.decay_func}")
@@ -222,23 +227,70 @@ class SoM:
         return map
     
     # ------------------------------------------------------------------------------------------------------------------------------
-    # Devuelve el una lista de predicciones para X_predict. Utiliza X_label para asignar etiquetas al mapa
+    # Rellena las etiquetas faltantes de las neuronas que no han sido activadas en la etiquetacion. Rellena mediante la moda de los vecinos
     # ------------------------------------------------------------------------------------------------------------------------------
 
+    def fill_labels(neuron_labels, shape, missing_value=-1, max_iter=10):
+        # Crear matriz con valor por defecto
+        matrix = np.full(shape, missing_value)
+        for (i, j), value in neuron_labels.items():
+            matrix[i, j] = value
 
-    def predict(self,X_label,y_label,X_predict):
-        X_som_test  = np.array(self.find_all_winner(X_predict))
-        neuron_labels=self.neuron_labels(X_label,y_label)
+        def fill_with_neighbor_mode(matrix, missing_value=-1):
+            filled = matrix.copy()
+            rows, cols = filled.shape
+
+            for i in range(rows):
+                for j in range(cols):
+                    if filled[i, j] == missing_value:
+                        neighbors = []
+                        for dx in [-1, 0, 1]:
+                            for dy in [-1, 0, 1]:
+                                if dx == 0 and dy == 0:
+                                    continue
+                                ni, nj = i + dx, j + dy
+                                if 0 <= ni < rows and 0 <= nj < cols and filled[ni, nj] != missing_value:
+                                    neighbors.append(filled[ni, nj])
+                        if neighbors:
+                            counts = np.bincount(np.array(neighbors, dtype=int))
+                            most_common = np.argmax(counts)
+                            filled[i, j] = most_common
+            return filled
+
+        # Iterar hasta rellenar todos los huecos o max_iter
+        filled = matrix.copy()
+        for _ in range(max_iter):
+            prev = filled.copy()
+            filled = fill_with_neighbor_mode(filled, missing_value=missing_value)
+            if np.array_equal(prev, filled):
+                break
+
+        # Convertir matriz resultante a diccionario con todas las coordenadas
+        new_labels = {(i, j): int(filled[i, j]) for i in range(shape[0]) for j in range(shape[1])}
+        return new_labels
+
+    # ------------------------------------------------------------------------------------------------------------------------------
+    # Devuelve el una lista de predicciones para X_predict. Utiliza X_label para asignar etiquetas al mapa
+    # ------------------------------------------------------------------------------------------------------------------------------
+    
+    def predict(self,X_train,y_train,X_test):
+        X_train_scaled=self.scaler.transform(X_train)
+        X_test_scaled=self.scaler.transform(X_test)
+        X_som_train = np.array([self.find_winner(x) for x in X_train_scaled])
+        X_som_test  = np.array([self.find_winner(x) for x in X_test_scaled])
+        neuron_labels=self.neuron_labels(X_som_train,y_train)
+        # Rellenamos para asegurar que todas las neuronas tienen etiqueta
+        neuron_labels_filled=self.fill_labels(neuron_labels, self.grid_size)
+        # Predecir test
         y_pred = []
-        bar = tqdm(total=len(X_predict), desc="    Prediciendo", ncols=80)
-        for x in X_som_test:
-            coord = tuple(x)
-            if coord in neuron_labels:
-                y_pred.append(neuron_labels[coord])
+        for coord in X_som_test:
+            coord = tuple(coord)
+            if coord in neuron_labels_filled:
+                y_pred.append(neuron_labels_filled[coord])
             else:
-                # buscamos la neurona etiquetada más cercana
-                dists = [(coord[0] - c[0])**2 + (coord[1] - c[1])**2
-                         for c in neuron_labels.keys()]
-                nearest = list(neuron_labels.keys())[np.argmin(dists)]
-                y_pred.append(neuron_labels[nearest])
-        return y_pred
+                # buscar neurona etiquetada más cercana
+                dists = [ (coord[0]-c[0])**2 + (coord[1]-c[1])**2
+                        for c in neuron_labels_filled.keys() ]
+                nearest = list(neuron_labels_filled.keys())[np.argmin(dists)]
+                y_pred.append(neuron_labels_filled[nearest])
+        return np.array(y_pred)
