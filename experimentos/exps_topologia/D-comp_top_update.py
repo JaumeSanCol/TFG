@@ -8,7 +8,7 @@ from sklearn.model_selection import KFold
 from sklearn.manifold import trustworthiness
 from somJ.som import SoM
 from somJ.functions import *
-
+from sklearn.preprocessing import MinMaxScaler
 import somJ.config as config
 
 def evaluate_embedding(X, X_embedded, n_neighbors=5):
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     for ds in datasets:
         print(f"\n=== Procesando {ds} ===")
         X, y = load_dataset(ds)
-
+        X= MinMaxScaler().fit_transform(X)
         for ini, update in product(inits, updates):
             trust_scores, cont_scores, C_scores = [], [], []
 

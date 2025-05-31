@@ -230,7 +230,7 @@ class SoM:
     # Rellena las etiquetas faltantes de las neuronas que no han sido activadas en la etiquetacion. Rellena mediante la moda de los vecinos
     # ------------------------------------------------------------------------------------------------------------------------------
 
-    def fill_labels(neuron_labels, shape, missing_value=-1, max_iter=10):
+    def fill_labels(self,neuron_labels, shape, missing_value=-1, max_iter=10):
         # Crear matriz con valor por defecto
         matrix = np.full(shape, missing_value)
         for (i, j), value in neuron_labels.items():

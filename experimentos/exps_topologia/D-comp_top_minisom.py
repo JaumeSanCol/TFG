@@ -58,7 +58,6 @@ def run_experiment_kfold(dataset_name, n_splits=5):
         # Límite del hardware
         if len(X)>max_samples_c:
             X_train=X_train[:max_samples_c]
-        X_embed = np.array(som.find_all_winner(X_train))
 
         C_val = compute_som_continuity_quantization(X_train, M, m, n)
         
@@ -88,7 +87,6 @@ def run_experiment_kfold(dataset_name, n_splits=5):
         # Límite del hardware
         if len(X)>max_samples_c:
             X_train=X_train[:max_samples_c]
-        X_embed = np.array(som.find_all_winner(X_train))
 
         C_val = compute_som_continuity_quantization(X_train, M, m, n)
         
@@ -117,4 +115,4 @@ if __name__ == '__main__':
             })
 
     results_df = pd.DataFrame(all_results)
-    results_df.to_csv("experimentos/exps_topologia/csv/resultados_topologica_minisom.csv", index=False)
+    results_df.to_csv("experimentos/exps_topologia/csv/resultados_topologia_minisom.csv", index=False)

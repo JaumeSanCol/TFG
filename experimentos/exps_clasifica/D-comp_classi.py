@@ -166,18 +166,6 @@ if __name__ == '__main__':
     df_mean = df_results.groupby(["Dataset","Método"]).mean(numeric_only=True).reset_index()
     print("\n Resultados promediados:")
     print(df_mean)
-    df_mean.to_csv("experimentos/resultados_Class_memory_mejorado.csv", index=False)
+    df_mean.to_csv("experimentos/exps_clasifica/csv/results_class_minisom.csv", index=False)
 
-    sns.set(style="whitegrid", font_scale=1.2)
-    sns.set_palette('deep', n_colors=4)
-    order = ["Iris","Digits","MNIST","Fashion MNIST"]
-    metrics = ["Accuracy","Precision","Recall","F1","Time (s)","Memory (Mb)"]
-    for metric in metrics:
-        plt.figure(figsize=(10,6))
-        ax = sns.barplot(x="Dataset", y=metric, hue="Método", data=df_mean, order=order)
-        plt.title(f"{metric} promedio por Dataset y Método")
-        plt.ylim(0, df_mean[metric].max()*1.1)
-        plt.legend(title="Método", bbox_to_anchor=(1.02,1), loc='upper left')
-        plt.tight_layout(rect=[0,0,0.85,1])
-        plt.savefig(f"experimentos/g_class/mejorado/grafico_{metric.lower()}.png")
-        plt.show()
+    
