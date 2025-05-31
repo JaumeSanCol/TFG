@@ -143,5 +143,5 @@ if __name__ == '__main__':
 
     # Concatenar todos los resultados y guardar en un único archivo
     final_df = pd.concat(all_results, ignore_index=True)
-    results_df.to_csv("experimentos/exps_clasifica/csv/results_etiquetado_incremental.csv", index=False)
+    final_df.to_csv("experimentos/exps_clasifica/csv/results_etiquetado_incremental.csv", index=False)
     
