@@ -105,12 +105,10 @@ def dim_exp(dimensions,n_splits,n_samples):
 if __name__ == '__main__':
     # --- Parámetros ---
     n_samples   = 40000
-    dimensions  = [10, 50, 100, 500, 1000]
+    dimensions  = [10, 50, 100,250,500,750 ,1000]
     n_splits    = 5
-    out_dir     = 'g_time_comp'
-    os.makedirs(out_dir, exist_ok=True)
 
     results=dim_exp(dimensions,n_splits,n_samples)
     df_results = pd.DataFrame(results)
     print("\nResumen de tiempos (media ± std) por técnica y dimensión:")
-    df_results.to_csv("experimentos/exps_recursos/csv/resultados_dimensiones.csv",index=False)
+    df_results.to_csv("experimentos/exps_recursos/csv/resultados_dimensiones_xl.csv",index=False)

@@ -165,7 +165,7 @@ class SoM:
                 self._update_weights_batchmap(data_scaled, sigma_t_sq, lr_t)
 
                 if save:
-                    self.map_history.append(np.copy(self.som_map))
+                    self.map_history.append(self.re_scale())
 
                 step += len(data_scaled)
             else:
@@ -180,7 +180,7 @@ class SoM:
                         lr_t = self._decay(lr0,step,total_steps)
                         self._update_weights_batchmap(b, sigma_t_sq, lr_t)
                         if save:
-                            self.map_history.append(np.copy(self.som_map))
+                            self.map_history.append(self.re_scale())
                         step += len(b)
                 else:
                     for x in data_scaled:
@@ -190,7 +190,7 @@ class SoM:
                         self._update_weights(x, lr_t, sigma_t_sq)
 
                         if save:
-                            self.map_history.append(np.copy(self.som_map))
+                            self.map_history.append(self.re_scale())
                         step += 1
 
             if prog_bar:
@@ -231,7 +231,6 @@ class SoM:
     # ------------------------------------------------------------------------------------------------------------------------------
 
     def fill_labels(self,neuron_labels, shape, missing_value=-1, max_iter=10):
-        # Crear matriz con valor por defecto
         matrix = np.full(shape, missing_value)
         for (i, j), value in neuron_labels.items():
             matrix[i, j] = value

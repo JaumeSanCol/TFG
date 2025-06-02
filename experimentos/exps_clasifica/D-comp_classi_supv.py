@@ -94,7 +94,7 @@ def evaluate_all(datasets,limitado=False, random_state=42, n_splits=5):
             som = SoM(
                 method="pca",
                 data=X_train,
-                total_nodes=config.TOTAL_NODES
+                total_nodes=25
             )
             t0 = time.time()
             som.train(
@@ -103,7 +103,7 @@ def evaluate_all(datasets,limitado=False, random_state=42, n_splits=5):
                 sigma=1,
                 epochs=1,
             )
-            if limitado:som_pred=som.predict(X_train[:200],y_train[:200],X_test)
+            if limitado:som_pred=som.predict(X_train[:50],y_train[:50],X_test)
             else:som_pred=som.predict(X_train,y_train,X_test)
             t1 = time.time()
             # mide métricas SOM
@@ -120,12 +120,11 @@ def evaluate_all(datasets,limitado=False, random_state=42, n_splits=5):
             )
             # --- Entrena y predice con Random Forest ---
             rf = RandomForestClassifier(
-                n_estimators=100,
                 max_depth=None,
                 random_state=random_state
             )
             t0 = time.time()
-            if limitado:rf.fit(X_train[:200], y_train[:200])
+            if limitado:rf.fit(X_train[:50], y_train[:50])
             else:rf.fit(X_train, y_train)
             
             rf_pred = rf.predict(X_test)
@@ -180,6 +179,6 @@ if __name__ == '__main__':
     df_results = evaluate_all(datasets, limitado=limitado)
 
     # Guardar DataFrame en CSV
-    if limitado:name = 'results_supervisado_limitado.csv'
+    if limitado:name = 'results_supervisado_limitado_49.csv'
     else:name = 'results_supervisado.csv'
     df_results.to_csv(f"experimentos/exps_clasifica/csv/{name}", index=False)
