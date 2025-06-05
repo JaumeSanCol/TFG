@@ -54,22 +54,6 @@ def evaluate_classification_embedded(X_train_emb, y_train, X_test_emb, y_test):
 
 
 def evaluate_all(datasets,limitado=False, random_state=42, n_splits=5):
-    """
-    Para cada nombre en `datasets`:
-      - carga X, y
-      - aplica StratifiedKFold
-      - escala con MinMaxScaler
-      - entrena SOM (1 época) y RF
-      - en cada fold calcula accuracy, precision, recall, f1 y tiempo de entrenamiento
-    Devuelve un DataFrame con columnas:
-      ['dataset',
-       'method',
-       'accuracy_mean','accuracy_std',
-       'precision_mean','precision_std',
-       'recall_mean','recall_std',
-       'f1_mean','f1_std',
-       'train_time_mean','train_time_std']
-    """
     all_results = []
 
     for name in datasets:
@@ -106,7 +90,7 @@ def evaluate_all(datasets,limitado=False, random_state=42, n_splits=5):
             if limitado:som_pred=som.predict(X_train[:50],y_train[:50],X_test)
             else:som_pred=som.predict(X_train,y_train,X_test)
             t1 = time.time()
-            # mide métricas SOM
+
             metrics["SOM"]["train_time"].append(t1 - t0)
             metrics["SOM"]["accuracy"].append(accuracy_score(y_test, som_pred))
             metrics["SOM"]["precision"].append(
@@ -161,7 +145,6 @@ def evaluate_all(datasets,limitado=False, random_state=42, n_splits=5):
                 "train_time_std":   np.std(vals["train_time"], ddof=1),
             })
 
-    # Devuelve un DataFrame ordenado
     cols = [
         'dataset','method',
         'accuracy_mean','accuracy_std',
@@ -178,7 +161,6 @@ if __name__ == '__main__':
     limitado=True
     df_results = evaluate_all(datasets, limitado=limitado)
 
-    # Guardar DataFrame en CSV
     if limitado:name = 'results_supervisado_limitado_49.csv'
     else:name = 'results_supervisado.csv'
     df_results.to_csv(f"experimentos/exps_clasifica/csv/{name}", index=False)

@@ -21,7 +21,6 @@ os.makedirs(out_dir, exist_ok=True)
 
 import pandas as pd
 
-# Almacenar resultados en una lista de diccionarios
 results_list = []
 
 for ds in datasets:
@@ -68,9 +67,7 @@ for ds in datasets:
         results_list.append(row)
         print(f"  Muestras={s:3d} → mean={arr.mean():.3f}, std={arr.std(ddof=1):.3f}")
 
-# Creamos el DataFrame final
 results_df = pd.DataFrame(results_list)
 print(results_df)
 
-# Si quieres guardar a CSV:
 results_df.to_csv(os.path.join(out_dir, "results_etiquetado.csv"), index=False)

@@ -26,17 +26,12 @@ warnings.filterwarnings("ignore", category=UserWarning)
 #       -Acuraccy       -Precision         -Recall          -F1         -Tiempo de ejecución (s)       -Uso de memoria (Mb)
 #
 #   Los resultados son almacenados en un csv llamado resultados_Class.csv y resultados_Class_memory.csv dependiendo de si se ha 
-#   medido medido el uso de memoria (puede suponer un incremento en el timepo de ejecución). Las graficas se guardan en g_class/
+#   medido medido el uso de memoria (puede suponer un incremento en el timepo de ejecución). Las graficas se guardan en imgs/
 
 # ------------------------------------------------------------------------------------------------------------------------------
 
-# Después de evaluar la accuracy respecto del numero de epochs, podemos observar que minisom no requiere de tantas muestras para
-# obtener información por lo que con una epoch es suficiente. Poner "ajustado" verdadero, significa que para el experimento se
-# usara una sola epoch de Minisom frente a las 50 de SOM. Si es falso, se usarán 50 epochs en cada algoritmo.
 
 
-
-# Aplica MiniSom y devuelve el objeto entrenado
 
 def apply_som(X_sample):
     som_shape = int(np.sqrt(config.TOTAL_NODES))
@@ -46,7 +41,6 @@ def apply_som(X_sample):
     minisom.train_batch(X_sample, len(X_sample))
     return minisom
 
-# Aplica tu implementación SoM y devuelve el objeto entrenado
 
 def apply_som_j(X_scaled):
     som = SoM(method="pca", data=X_scaled, total_nodes=config.TOTAL_NODES)
@@ -109,7 +103,7 @@ def evaluate_all(datasets, memory, random_state=42, n_splits=5):
             X_scaled = scaler.fit_transform(X)
             X_train_scaled, X_test_scaled = X_scaled[train_idx], X_scaled[test_idx]
 
-            # --- Embedding SOM custom ---
+            # --- Embedding SOM ---
             if memory: tracemalloc.start()
             start = time.perf_counter()
             somJ = apply_som_j(X_train_scaled)

@@ -51,24 +51,46 @@ def load_dataset(name):
 
     return X.values, y
 
+
 def compute_continuity(X, X_embedded, n_neighbors=5):
     n_samples = X.shape[0]
+
+    # Vecinos originales
     nn_orig = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X)
     neigh_orig = nn_orig.kneighbors(X, return_distance=False)[:, 1:]
+
+    # Vecinos en el espacio reducido
     nn_embed = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X_embedded)
     neigh_embed = nn_embed.kneighbors(X_embedded, return_distance=False)[:, 1:]
 
-    ranks = np.zeros(n_samples)
-    for i in range(n_samples):
-        missing = set(neigh_orig[i]) - set(neigh_embed[i])
-        ranks[i] = len(missing)
+    # Calculamos los rankings para todos los puntos
+    nn_embed_all = NearestNeighbors(n_neighbors=n_samples).fit(X_embedded)
+    all_embed_neighbors = nn_embed_all.kneighbors(X_embedded, return_distance=False)
 
-    continuity = 1 - (np.mean(ranks) / n_neighbors)
+    total = 0.0
+    for i in range(n_samples):
+        orig_neighbors = set(neigh_orig[i])
+        emb_neighbors = set(neigh_embed[i])
+        # Vecinos originales que NO están en los vecinos proyectados
+        missing = orig_neighbors - emb_neighbors
+        for j in missing:
+            # Miramos cuál es la diferencia entre los rankings 
+            rank = np.where(all_embed_neighbors[i] == j)[0][0] + 1
+            total += (rank - n_neighbors)
+    
+    norm = n_samples * n_neighbors * (2 * n_samples - 3 * n_neighbors - 1)
+    continuity = 1 - (2 / norm) * total
     return continuity
 
 
 def compute_som_continuity_quantization(X, M, n_rows, n_cols):
+    # X: datos originales
+    # M: prototipos (pesos) del SOM
+    # n_rows, n_cols: dimensiones de la cuadrícula
+
     n_units = M.shape[0]
+
+    # Creamos un grafo donde cada neurona se conecta con sus vecinas
     G = nx.Graph()
     for i in range(n_units):
         r, c = divmod(i, n_cols)
@@ -76,16 +98,22 @@ def compute_som_continuity_quantization(X, M, n_rows, n_cols):
             rr, cc = r+dr, c+dc
             if 0 <= rr < n_rows and 0 <= cc < n_cols:
                 j = rr * n_cols + cc
+                # El peso entre neuronas es la distancia euclidiana entre sus vectores de pesos
                 G.add_edge(i, j, weight=np.linalg.norm(M[i] - M[j]))
 
+    # Calculamos las distancias de cada muestra a cada neurona 
     dists = np.linalg.norm(X[:, None, :] - M[None, :, :], axis=2)
+    # Para cada muestra, sacamos las dos neuronas más cercanas
     bmus = np.argsort(dists, axis=1)[:, :2]
 
     d_x = np.zeros(X.shape[0])
     for idx in range(X.shape[0]):
         bmu, second = bmus[idx]
+        # Medimos el error de cuantización
         q_err = dists[idx, bmu]
+        #Buscamos el camino más corto entre las dos neuronas ganadoras, aumulando distancias
         topo = nx.shortest_path_length(G, bmu, second, weight='weight')
         d_x[idx] = q_err + topo
 
+    # Promediamos todo para tener el valor final de la continuidad cuantizada C
     return d_x.mean()

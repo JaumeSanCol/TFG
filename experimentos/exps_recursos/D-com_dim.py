@@ -45,7 +45,7 @@ def dim_exp(dimensions,n_splits,n_samples):
             y_train = label_data[train_idx]
             print(f" Fold {fold_idx}/{n_splits}", end='… ')
             
-            # SoM (somJ)
+            # SoM 
             som = SoM(
                 method=config.INIT_METHOD,
                 data=X_train,

@@ -13,7 +13,6 @@ from sklearn.model_selection import train_test_split
 
 
 def fill_labels(neuron_labels, shape, missing_value=-1, max_iter=10):
-    # Crear matriz con valor por defecto
     matrix = np.full(shape, missing_value)
     for (i, j), value in neuron_labels.items():
         matrix[i, j] = value
@@ -39,7 +38,6 @@ def fill_labels(neuron_labels, shape, missing_value=-1, max_iter=10):
                         filled[i, j] = most_common
         return filled
 
-    # Iterar hasta rellenar todos los huecos o max_iter
     filled = matrix.copy()
     for _ in range(max_iter):
         prev = filled.copy()
@@ -55,9 +53,9 @@ def fill_labels(neuron_labels, shape, missing_value=-1, max_iter=10):
 if __name__ == '__main__':
     datasets = ["Iris","Digits", "MNIST", "Fashion MNIST"]
     n_splits = 5
-    n_max = 500  # Puedes ajustar este número si lo necesitas
+    n_max = 500  
 
-    all_results = []  # Lista para acumular todos los resultados
+    all_results = []
 
     for dataset_name in datasets:
         print(f"\nProcesando dataset: {dataset_name}")
@@ -130,7 +128,6 @@ if __name__ == '__main__':
         acc_rf_mean = acc_rf_all_folds.mean(axis=0)
         acc_rf_std = acc_rf_all_folds.std(axis=0)
 
-        # Guardar resultados incluyendo el nombre del dataset
         results_df = pd.DataFrame({
             'n': np.arange(1, n_max),
             'SOM_mean': acc_mean,
@@ -141,7 +138,6 @@ if __name__ == '__main__':
         })
         all_results.append(results_df)
 
-    # Concatenar todos los resultados y guardar en un único archivo
     final_df = pd.concat(all_results, ignore_index=True)
     final_df.to_csv("experimentos/exps_clasifica/csv/results_etiquetado_incremental.csv", index=False)
     

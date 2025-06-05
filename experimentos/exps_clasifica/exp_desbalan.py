@@ -135,7 +135,6 @@ for porc in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,0.8,0.9]:
             "train_time_std": np.std(vals["train_time"], ddof=1),
         })
 
-# Guarda en CSV
 df_results = pd.DataFrame(all_results)
 df_results.to_csv("experimentos/exps_clasifica/csv/results_mnist_desbalan.csv", index=False)
 print("Resultados guardados en resultados_mnist_subset.csv")
